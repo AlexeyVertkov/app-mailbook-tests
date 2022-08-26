@@ -1,0 +1,53 @@
+version: "3"
+services:
+  selenoid:
+    image: aerokube/selenoid
+    container_name: selenoid
+    network_mode: bridge
+    volumes:
+      - ./selenoid/:/etc/selenoid
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./selenoid/video/:/opt/selenoid/video/
+    environment:
+      - OVERRIDE_VIDEO_OUTPUT_DIR=C:\your\absolute\path\app-mailbook-tests\selenoid\video
+    command: [ "-conf", "/etc/selenoid/browsers.json", "-video-output-dir", "/opt/selenoid/video"]
+    ports:
+      - "4444:4444"
+
+  selenoid-ui:
+    image: aerokube/selenoid-ui
+    container_name: selenoid-ui
+    network_mode: bridge
+    links:
+      - selenoid
+    ports:
+      - "8080:8080"
+    command: [ "--selenoid-uri", "http://selenoid:4444" ]
+
+  selenoid-video-recorder:
+    image: selenoid/video-recorder:latest-release
+    logging:
+      driver: none
+
+  chrome-browser:
+    image: selenoid/vnc_chrome:104.0
+    logging:
+      driver: none
+
+  firefox-browser:
+    image: selenoid/vnc_firefox:103.0
+    logging:
+      driver: none
+
+  tests_runner:
+    image: maven:latest
+    container_name: tests_works
+    network_mode: host
+    working_dir: /tests
+    volumes:
+      - ./:/tests/
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Maven cache (optional)
+      - ~/.m2:/root/.m2
+      - ./allure-results/:/tests/allure-results/
+    command: mvn test -q -Dbrowser=chrome -DdriverType=remote -Dit.test=ContactSuite
